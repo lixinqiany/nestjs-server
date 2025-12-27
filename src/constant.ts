@@ -1,4 +1,4 @@
-export const isDev = process.env.NODE_ENV === 'development';
+export const isDev = process.env.NODE_ENV === "development";
 export const SERVER_PORT: number = process.env.SERVER_PORT
   ? parseInt(process.env.SERVER_PORT)
   : 3000;
@@ -11,7 +11,20 @@ const parseIntIfNumeric = (value: string | undefined): string | number | undefin
 };
 export const LOG_LEVEL: string | undefined = process.env.LOG_LEVEL || undefined;
 export const MAX_SIZE_PER_LOG_FILE: string | number =
-  parseIntIfNumeric(process.env.MAX_SIZE_PER_LOG_FILE) || '20m';
+  parseIntIfNumeric(process.env.MAX_SIZE_PER_LOG_FILE) || "20m";
 export const MAX_LOG_FILES: string | number | undefined =
   parseIntIfNumeric(process.env.MAX_LOG_FILES) || undefined;
-export const LOG_DATE_PATTERN: string = process.env.LOG_DATE_PATTERN || 'YYYY-MM-DD';
+export const LOG_DATE_PATTERN: string = process.env.LOG_DATE_PATTERN || "YYYY-MM-DD";
+
+export const REDIS_HOST: string = process.env.REDIS_HOST ?? "localhost";
+export const REDIS_PORT: number = parseInt(process.env.REDIS_PORT || "6379", 10);
+export const REDIS_USERNAME: string | undefined = process.env.REDIS_USERNAME || undefined;
+export const REDIS_PASSWORD: string | undefined = process.env.REDIS_PASSWORD || undefined;
+export const REDIS_DB: number = parseInt(process.env.REDIS_DB || "0", 10);
+export const REDIS_SENTINEL_NAME: string | undefined = process.env.REDIS_SENTINEL_NAME || undefined;
+export const REDIS_SENTINEL_HOSTS: string | undefined =
+  process.env.REDIS_SENTINEL_HOSTS || undefined;
+export const REDIS_SENTINEL_USERNAME: string | undefined =
+  process.env.REDIS_SENTINEL_USERNAME || undefined;
+export const REDIS_SENTINEL_PASSWORD: string | undefined =
+  process.env.REDIS_SENTINEL_PASSWORD || undefined;
