@@ -28,3 +28,15 @@ export const REDIS_SENTINEL_USERNAME: string | undefined =
   process.env.REDIS_SENTINEL_USERNAME || undefined;
 export const REDIS_SENTINEL_PASSWORD: string | undefined =
   process.env.REDIS_SENTINEL_PASSWORD || undefined;
+
+export const MONGODB_REPLICA_SET_NAME: string | undefined =
+  process.env.MONGODB_REPLICA_SET_NAME || undefined;
+export const MONGODB_REPLICA_SET_HOSTS: string | undefined =
+  process.env.MONGODB_REPLICA_SET_HOSTS || undefined;
+export const MONGODB_HOST = process.env.MONGODB_HOST || "localhost";
+export const MONGODB_PORT = parseInt(process.env.MONGODB_PORT || "27017", 10);
+export const MONGODB_DATABASE = process.env.MONGODB_DATABASE || "test";
+export const MONGODB_USERNAME: string | undefined = process.env.MONGODB_USERNAME || undefined;
+export const MONGODB_PASSWORD: string | undefined = process.env.MONGODB_PASSWORD || undefined;
+export const MONGODB_AUTHENTICATION_DATABASE: string | undefined =
+  process.env.MONGODB_AUTHENTICATION_DATABASE || undefined;
