@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Logger, Module } from "@nestjs/common";
 import { MongooseModule, type MongooseModuleOptions } from "@nestjs/mongoose";
 import {
   MONGODB_USERNAME,
@@ -10,6 +10,7 @@ import {
   MONGODB_AUTHENTICATION_DATABASE,
   MONGODB_DATABASE,
 } from "#/constant";
+import { Connection } from "mongoose";
 
 export function getMongoURI(): string {
   const hosts = MONGODB_REPLICA_SET_HOSTS || `${MONGODB_HOST}:${MONGODB_PORT}`;
@@ -36,6 +37,40 @@ export function getMongooseOptions(): MongooseModuleOptions {
 }
 
 @Module({
-  imports: [MongooseModule.forRoot(getMongoURI(), getMongooseOptions())],
+  imports: [
+    MongooseModule.forRootAsync({
+      inject: [Logger],
+      useFactory: (logger: Logger) => {
+        const uri = getMongoURI();
+        const options = getMongooseOptions();
+
+        return {
+          uri,
+          ...options,
+          connectionFactory: (connection: Connection) => {
+            if ((connection.readyState as number) === 1) {
+              logger.log(`Mongoose connected to ${uri}, db: ${options.dbName}`, "MongooseModule");
+            }
+
+            // 进入这里的时候如果连接过快，这个事件的绑定在连接之后就不会打印日志
+            connection.on("connected", () => {
+              logger.log("Mongoose connected", "MongooseModule");
+            });
+
+            connection.on("disconnected", () => {
+              logger.warn("Mongoose disconnected", "MongooseModule");
+            });
+
+            connection.on("error", (error) => {
+              logger.error(`Mongoose connection error: ${error}`, "MongooseModule");
+            });
+
+            return connection;
+          },
+        };
+      },
+    }),
+  ],
+  providers: [Logger],
 })
 export class MongoModule {}
