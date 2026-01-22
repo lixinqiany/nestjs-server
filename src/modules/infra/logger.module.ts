@@ -1,18 +1,18 @@
-import { Global, Module, Logger } from '@nestjs/common';
-import { WinstonModule, utilities as nestWinstonModuleUtilities } from 'nest-winston';
-import * as winston from 'winston';
-import 'winston-daily-rotate-file';
-import { join } from 'node:path';
+import { Global, Module, Logger } from "@nestjs/common";
+import { WinstonModule, utilities as nestWinstonModuleUtilities } from "nest-winston";
+import * as winston from "winston";
+import "winston-daily-rotate-file";
+import { join } from "node:path";
 import {
   isDev,
   LOG_LEVEL,
   MAX_SIZE_PER_LOG_FILE,
   LOG_DATE_PATTERN,
   MAX_LOG_FILES,
-} from '#/constant';
+} from "#/constant";
 
 const getLogLevel = (): string => {
-  return LOG_LEVEL || (isDev ? 'debug' : 'info');
+  return LOG_LEVEL || (isDev ? "debug" : "info");
 };
 
 @Global()
@@ -34,7 +34,7 @@ const getLogLevel = (): string => {
 
           format: winston.format.combine(
             // first parm is the our software name
-            nestWinstonModuleUtilities.format.nestLike('nestjs-server', {
+            nestWinstonModuleUtilities.format.nestLike("nestjs-server", {
               colors: true,
               prettyPrint: true,
               processId: true,
@@ -44,8 +44,8 @@ const getLogLevel = (): string => {
         }),
         // 统一日志文件：按文件大小和日期切割，不再单独区分 error log
         new winston.transports.DailyRotateFile({
-          dirname: join(process.cwd(), 'logs'),
-          filename: 'nestjs-server_%DATE%.log',
+          dirname: join(process.cwd(), "logs"),
+          filename: "nestjs-server_%DATE%.log",
           // A string representing the moment.js date format to be used for rotating.
           // Frequency is determined by the finest time unit in this pattern (e.g., "HH" for hourly).
           datePattern: LOG_DATE_PATTERN,
@@ -57,7 +57,7 @@ const getLogLevel = (): string => {
           maxFiles: MAX_LOG_FILES,
           level: getLogLevel(),
           format: winston.format.combine(
-            nestWinstonModuleUtilities.format.nestLike('nestjs-server', {
+            nestWinstonModuleUtilities.format.nestLike("nestjs-server", {
               colors: false,
               prettyPrint: true,
               processId: true,
