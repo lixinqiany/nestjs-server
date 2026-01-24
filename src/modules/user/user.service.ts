@@ -4,6 +4,8 @@ import { Model } from "mongoose";
 import bcrypt from "bcrypt";
 import { User, UserDocument } from "./user.schema";
 import { CreateUserDto } from "../../dto/request/user.dto";
+import { throwErrorIfDuplicated } from "#/utils/mongo-error.helper";
+import { MongoServerError } from "mongodb";
 
 @Injectable()
 export class UserService {
@@ -30,6 +32,16 @@ export class UserService {
       email,
       roles,
     });
-    return user.save();
+
+    try {
+      const result = await user.save();
+      this.logger.log(`成功创建用户: ${result.username}`, "UserService");
+      return result;
+    } catch (error) {
+      if (error instanceof MongoServerError) {
+        throwErrorIfDuplicated(error, this.logger);
+      }
+      throw error;
+    }
   }
 }
