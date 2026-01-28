@@ -47,12 +47,8 @@ async function connectMongo(): Promise<Connection> {
     pass: MONGODB_PASSWORD,
   };
 
-  if (MONGODB_AUTHENTICATION_DATABASE) {
-    options.authSource = MONGODB_AUTHENTICATION_DATABASE;
-  }
-  if (MONGODB_REPLICA_SET_NAME) {
-    options.replicaSet = MONGODB_REPLICA_SET_NAME;
-  }
+  if (MONGODB_AUTHENTICATION_DATABASE) options.authSource = MONGODB_AUTHENTICATION_DATABASE;
+  if (MONGODB_REPLICA_SET_NAME) options.replicaSet = MONGODB_REPLICA_SET_NAME;
 
   await mongoose.connect(uri, options);
   log(`${PREFIX} ${chalk.green("已连接")} ${chalk.gray(`${uri}/${MONGODB_DATABASE}`)}`);
@@ -65,18 +61,14 @@ async function scanMigrationFiles(): Promise<string[]> {
   const invalidFiles = files.filter((file) => !MIGRATION_FILE_REGEX.test(file));
 
   if (invalidFiles.length > 0) {
-    throw new Error(
-      `迁移脚本命名不规范: ${invalidFiles.join(", ")}。规范格式: v{version}_{name}_{order}.ts`,
-    );
+    throw new Error(`脚本命名不规范: ${invalidFiles.join(", ")}`);
   }
   return files;
 }
 
 function parseMigrationFileName(fileName: string): MigrationFileInfo {
   const match = fileName.match(MIGRATION_FILE_REGEX);
-  if (!match) {
-    throw new Error(`File name format invalid: ${fileName}`);
-  }
+  if (!match) throw new Error(`File name format invalid: ${fileName}`);
 
   const [, version, name, orderStr] = match;
   return {
@@ -143,21 +135,66 @@ async function recordMigration(connection: Connection, fileInfo: MigrationFileIn
   });
 }
 
+async function removeMigrationRecord(connection: Connection, fileName: string): Promise<void> {
+  const db = connection.db;
+  if (!db) throw new Error("Database not available");
+
+  await db.collection<MigrationRecord>(MIGRATION_COLLECTION).deleteOne({ fileName });
+}
+
+async function loadMigration(
+  connection: Connection,
+  fileInfo: MigrationFileInfo,
+): Promise<AbstractMigration> {
+  const module = (await import(fileInfo.filePath)) as {
+    default: new (connection: Connection) => AbstractMigration;
+  };
+  return new module.default(connection);
+}
+
 async function executeMigration(
   connection: Connection,
   fileInfo: MigrationFileInfo,
 ): Promise<void> {
-  const module = (await import(fileInfo.filePath)) as {
-    default: new (connection: Connection) => AbstractMigration;
-  };
-  const migration = new module.default(connection);
+  const migration = await loadMigration(connection, fileInfo);
   await migration.up();
   await recordMigration(connection, fileInfo);
   log(`${PREFIX} ${chalk.green("✓")} ${chalk.cyan(fileInfo.fileName)}`);
 }
 
+async function rollbackMigration(
+  connection: Connection,
+  fileInfo: MigrationFileInfo,
+): Promise<void> {
+  log(`${PREFIX} ${chalk.yellow("↩")} 回滚 ${chalk.cyan(fileInfo.fileName)}`);
+  const migration = await loadMigration(connection, fileInfo);
+  await migration.down();
+  await removeMigrationRecord(connection, fileInfo.fileName);
+  log(`${PREFIX} ${chalk.yellow("✓")} 回滚完成 ${chalk.cyan(fileInfo.fileName)}`);
+}
+
+async function rollbackAll(
+  connection: Connection,
+  executedInThisRun: MigrationFileInfo[],
+): Promise<void> {
+  if (executedInThisRun.length === 0) return;
+
+  log(`${PREFIX} ${chalk.red("开始回滚本次执行的迁移...")}`);
+
+  // 逆序回滚
+  for (let i = executedInThisRun.length - 1; i >= 0; i--) {
+    try {
+      await rollbackMigration(connection, executedInThisRun[i]);
+    } catch (rollbackErr) {
+      error(`${PREFIX} ${chalk.red("回滚失败:")} ${executedInThisRun[i].fileName}`, rollbackErr);
+      // 继续回滚其他的
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const connection = await connectMongo();
+  const executedInThisRun: MigrationFileInfo[] = [];
 
   try {
     const files = await scanMigrationFiles();
@@ -177,9 +214,14 @@ async function main(): Promise<void> {
 
     for (const fileInfo of pending) {
       await executeMigration(connection, fileInfo);
+      executedInThisRun.push(fileInfo);
     }
 
     log(`${PREFIX} ${chalk.green("全部完成")}`);
+  } catch (err) {
+    error(`${PREFIX} ${chalk.red("执行失败:")}`, err);
+    await rollbackAll(connection, executedInThisRun);
+    throw err;
   } finally {
     await mongoose.disconnect();
   }
@@ -187,7 +229,4 @@ async function main(): Promise<void> {
 
 main()
   .then(() => process.exit(0))
-  .catch((err) => {
-    error(`${PREFIX} ${chalk.red("失败:")}`, err);
-    process.exit(1);
-  });
+  .catch(() => process.exit(1));
