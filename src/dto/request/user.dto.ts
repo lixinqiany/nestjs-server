@@ -22,3 +22,13 @@ export class CreateUserDto {
   @IsOptional()
   roles?: Role[];
 }
+
+export class LoginUserDto {
+  @IsString()
+  @IsNotEmpty({ message: "username is missing" })
+  username: string;
+
+  @IsString()
+  @IsNotEmpty({ message: "password is missing" })
+  password: string;
+}

@@ -1,9 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import bcrypt from "bcrypt";
 import { User, UserDocument } from "./user.schema";
-import { CreateUserDto } from "../../dto/request/user.dto";
+import { CreateUserDto, LoginUserDto } from "../../dto/request/user.dto";
 import { throwErrorIfDuplicated } from "#/utils/mongo-error.helper";
 import { MongoServerError } from "mongodb";
 
@@ -43,5 +43,33 @@ export class UserService {
       }
       throw error;
     }
+  }
+
+  async validateUser(loginUserDto: LoginUserDto): Promise<UserDocument> {
+    const { username, password } = loginUserDto;
+
+    const user = await this.userModel.findOne({ username });
+    if (!user) {
+      this.logger.warn(`登录失败: 用户 ${username} 不存在`, "UserService");
+      throw new UnauthorizedException("用户不存在");
+    }
+
+    if (!user.isActive) {
+      this.logger.warn(`登录失败: 用户 ${username} 已被禁用`, "UserService");
+      throw new UnauthorizedException("账号已被禁用");
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      this.logger.warn(`登录失败: 用户 ${username} 密码错误`, "UserService");
+      throw new UnauthorizedException("密码错误");
+    }
+
+    this.logger.log(`用户 ${username} 登录成功`, "UserService");
+    return user;
+  }
+
+  async login(loginUserDto: LoginUserDto): Promise<UserDocument> {
+    return await this.validateUser(loginUserDto);
   }
 }
